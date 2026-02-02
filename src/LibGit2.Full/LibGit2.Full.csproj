@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+    <PropertyGroup>
+        <AssemblyName>libgit2.full</AssemblyName>
+        <PackageId>libgit2.full</PackageId>
+        <EnableDefaultItems>false</EnableDefaultItems>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Condition="$(ArtifactsRoot) != ''" Include="$(ArtifactsRoot)/**" Pack="true" PackagePath=""/>
+    </ItemGroup>
+</Project>

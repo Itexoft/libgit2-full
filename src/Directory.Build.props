@@ -1,0 +1,54 @@
+<Project>
+    <PropertyGroup>
+        <TargetFramework>net10.0</TargetFramework>
+        <GeneratePackageOnBuild>false</GeneratePackageOnBuild>
+        <GenerateAssemblyInfo>false</GenerateAssemblyInfo>
+        <GenerateTargetFrameworkAttribute>false</GenerateTargetFrameworkAttribute>
+        <PackageRequireLicenseAcceptance>false</PackageRequireLicenseAcceptance>
+        <LangVersion>latest</LangVersion>
+        <InvariantGlobalization>true</InvariantGlobalization>
+        <PackageReadmeFile>README.md</PackageReadmeFile>
+        <PackageLicenseFile>COPYING</PackageLicenseFile>
+        <RepositoryType>git</RepositoryType>
+        <RepositoryUrl>https://github.com/Itexoft/libgit2-full</RepositoryUrl>
+        <PackageProjectUrl>https://github.com/Itexoft/libgit2-full</PackageProjectUrl>
+        <PackageType>Dependency</PackageType>
+        <IncludeBuildOutput>false</IncludeBuildOutput>
+        <SuppressDependenciesWhenPacking>true</SuppressDependenciesWhenPacking>
+        <Authors>Denis Kudelin</Authors>
+        <Company>Itexoft</Company>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <Libgit2Root>$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)../libgit2/'))</Libgit2Root>
+        <Libgit2VersionHeader>$(Libgit2Root)include/git2/version.h</Libgit2VersionHeader>
+        <Libgit2VersionText>$([System.IO.File]::ReadAllText('$(Libgit2VersionHeader)'))</Libgit2VersionText>
+        <Libgit2Version>$([System.Text.RegularExpressions.Regex]::Match('$(Libgit2VersionText)', '#define LIBGIT2_VERSION\s+"([^"]+)"').Groups[1].Value)</Libgit2Version>
+        <Version Condition="'$(Libgit2Version)' != ''">$(Libgit2Version)</Version>
+        <PackageVersion Condition="'$(Libgit2Version)' != ''">$(Libgit2Version)</PackageVersion>
+        <AssemblyVersion Condition="'$(Libgit2Version)' != ''">$(Libgit2Version)</AssemblyVersion>
+        <FileVersion Condition="'$(Libgit2Version)' != ''">$(Libgit2Version)</FileVersion>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <Libgit2Copying>$(Libgit2Root)COPYING</Libgit2Copying>
+        <Libgit2CopyingText>$([System.IO.File]::ReadAllText('$(Libgit2Copying)'))</Libgit2CopyingText>
+        <Libgit2Authors>$([System.Text.RegularExpressions.Regex]::Match('$(Libgit2CopyingText)', 'libgit2 is Copyright \(C\) ([^,\r\n]+)').Groups[1].Value)</Libgit2Authors>
+        <Copyright Condition="'$(Libgit2Authors)' != ''">$(Libgit2Authors)</Copyright>
+        <Copyright Condition="'$(Libgit2Authors)' == ''">libgit2 contributors</Copyright>
+    </PropertyGroup>
+
+    <PropertyGroup>
+        <Libgit2Readme>$(Libgit2Root)README.md</Libgit2Readme>
+        <Libgit2ReadmeText>$([System.IO.File]::ReadAllText('$(Libgit2Readme)'))</Libgit2ReadmeText>
+        <Libgit2Description>$([System.Text.RegularExpressions.Regex]::Match('$(Libgit2ReadmeText)', '^([^\r\n]+)').Groups[1].Value)</Libgit2Description>
+        <Description Condition="'$(Libgit2Description)' != ''">$(Libgit2Description)</Description>
+        <Description Condition="'$(Description)' == ''">libgit2 - the Git linkable library</Description>
+    </PropertyGroup>
+
+    <ItemGroup>
+        <None Include="$(Libgit2Root)README.md" Pack="true" PackagePath="" Link="README.md"/>
+        <None Include="$(Libgit2Root)COPYING" Pack="true" PackagePath="" Link="COPYING"/>
+        <None Include="$(Libgit2Root)AUTHORS" Pack="true" PackagePath="" Link="AUTHORS"/>
+    </ItemGroup>
+</Project>

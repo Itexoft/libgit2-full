@@ -1,0 +1,148 @@
+name: CI
+on:
+  push:
+    branches: [ master ]
+  pull_request:
+    branches: [ master ]
+  workflow_dispatch:
+  workflow_call:
+    outputs:
+      run-id:
+        description: ci run id
+        value: ${{ github.run_id }}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Build (${{ matrix.rid }})
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - rid: win-x86
+            os: windows-latest
+          - rid: win-x64
+            os: windows-latest
+          - rid: win-arm64
+            os: windows-latest
+          - rid: linux-x64
+            os: ubuntu-latest
+          - rid: linux-arm64
+            os: ubuntu-latest
+          - rid: linux-arm
+            os: ubuntu-latest
+          - rid: linux-ppc64le
+            os: ubuntu-latest
+          - rid: linux-musl-x64
+            os: ubuntu-latest
+          - rid: linux-musl-arm64
+            os: ubuntu-latest
+          - rid: linux-musl-arm
+            os: ubuntu-latest
+          - rid: osx-x64
+            os: macos-latest
+          - rid: osx-arm64
+            os: macos-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup QEMU
+        if: startsWith(matrix.rid, 'linux-')
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: all
+
+      - name: Setup Docker Buildx
+        if: startsWith(matrix.rid, 'linux-')
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build runtime
+        env:
+          USE_DOCKER: ${{ startsWith(matrix.rid, 'linux-') && '1' || '' }}
+        run: |
+          set -euo pipefail
+          rid="${{ matrix.rid }}"
+          runtime_dir="artifacts/runtimes/$rid/native"
+          rm -rf "$runtime_dir"
+          mkdir -p "$runtime_dir"
+
+          chmod +x ./build.sh
+          ./build.sh "$rid" "$runtime_dir"
+
+      - name: Upload runtime
+        uses: actions/upload-artifact@v4
+        with:
+          name: libgit2-full-runtime-${{ matrix.rid }}
+          path: artifacts/runtimes
+          if-no-files-found: error
+          retention-days: 1
+
+  pack:
+    name: Pack
+    runs-on: macos-latest
+    needs: build
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          submodules: recursive
+
+      - name: Setup .NET
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Download runtimes
+        uses: actions/download-artifact@v4
+        with:
+          pattern: libgit2-full-runtime-*
+          path: artifacts/runtimes
+          merge-multiple: true
+
+      - name: List runtime files
+        run: |
+          set -euo pipefail
+          find artifacts/runtimes -maxdepth 4 -type f -print
+
+      - name: Pack
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/nuget"
+          dotnet restore "./src/LibGit2.Full/LibGit2.Full.csproj"
+          dotnet pack "./src/LibGit2.Full/LibGit2.Full.csproj" -c Release --no-build -o "./nuget" "-p:ArtifactsRoot=$GITHUB_WORKSPACE/artifacts/"
+
+      - name: Locate packages
+        id: pkgs
+        run: |
+          set -euo pipefail
+          files=()
+          while IFS= read -r f; do files+=("$f"); done < <(find "$GITHUB_WORKSPACE/nuget" -type f -name '*.nupkg' -print | sort)
+          if [ "${#files[@]}" -eq 0 ]; then echo "::error::No .nupkg found after pack"; exit 1; fi
+          {
+            echo "paths<<EOF"
+            printf "%s\n" "${files[@]}"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Upload packages
+        uses: actions/upload-artifact@v4
+        with:
+          name: libgit2-full-packages
+          path: ${{ steps.pkgs.outputs.paths }}
+          if-no-files-found: error
